@@ -1,43 +1,39 @@
-from label import LabelEnv, str_to_label
+from label import str_to_label
+from module import Module, Function, Block, DeclaredFunction
 from re import search, findall
 
 def type_check(filename: str) -> None:
-	env = LabelEnv()
+	module = Module()
 	current_func = None
 	current_block = None
 	with open(filename, "r") as file:
 		for i, line in enumerate(file.readlines()):
 			if match := search(r"(@\S+) = .+ !sec !{!\"(\w+)\"}", line):
 				# global variable
-				env[match.group(1)] = str_to_label(match.group(2))
+				module.add_global(match.group(1), str_to_label(match.group(2)))
 			elif match := search(r"declare .+ @free\(", line):
 				# free
 				pass
 			elif match := search(r"declare .+ (@\S+)\(", line):
 				# declare
-				name = match.group(1)
-				matches = findall(r"\"(public|private|void|...)\"", line)
-				if matches[0] != "void" and matches[1] != matches[0]:
-					raise TypeError(f"{filename}:{i + 1}: {name} has different ret ({matches[0]}) and pc ({matches[1]}) labels")
-				env[name] = str_to_label(" ".join(matches))
+				labels = list(map(str_to_label, findall(r"\"(public|private|void|...)\"", line)))
+				module.add_function(DeclaredFunction(match.group(1), labels[0], labels[1], labels[2 : ]))
+				print(f"DECLARE {match.group(1)}")
 			elif match := search(r"define .+ (@\S+)\(", line):
 				# define
-				name = match.group(1)
-				matches = findall(r"\"(public|private|void|...)\"", line)
-				if matches[0] != "void" and matches[1] != matches[0]:
-					raise TypeError(f"{filename}:{i + 1}: {name} has different ret ({matches[0]}) and pc ({matches[1]}) labels")
-				env[name] = str_to_label(" ".join(matches))
-				current_func = name
-				print(f"START {current_func}")
-				env = LabelEnv(env)
-			elif match := search(r"^(\S+):", line):
+				labels = list(map(str_to_label, findall(r"\"(public|private|void|...)\"", line)))
+				params = findall(r"\"(%[^,)]+)\"", line)
+				current_func = Function(match.group(1), labels[0], labels[1], dict(zip(params, labels[2 : ])))
+				print(f"START {current_func.name}")
+			elif match := search(r"^(\S+):.+!sec !{!\"(public|private)\"}", line):
 				# block
-				current_block = match.group(1)
+				current_block = Block(match.group(1), str_to_label(match.group(2)))
 				print(f"{match.group(1)}")
 			elif match := search(r"^}", line):
-				env = env.parent
-				print(f"END {current_func}")
+				# end of function
+				module.add_function(current_func)
+				print(f"END {current_func.name}\n")
 			# else:
 			# 	print(f"Ignoring {filename}:{i}: {line}")
 
-print(type_check("btree1-annotated.ll"))
+type_check("btree1-annotated.ll")
