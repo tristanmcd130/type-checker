@@ -30,5 +30,13 @@ def label_to_str(label: Label) -> str:
 		case Label.VarArgs:
 			return "..."
 
-def flows(src, tgt):
+def flows(src: Label, tgt: Label) -> bool:
 	return not (src == Label.Private and tgt == Label.Public)
+
+def equals(src: Label, tgt: Label) -> bool:
+	return src == tgt
+
+def join(label1: Label, label2: Label) -> Label:
+	if label1 == Label.Private or label2 == Label.Private:
+		return Label.Private
+	return Label.Public

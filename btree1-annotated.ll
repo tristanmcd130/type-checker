@@ -73,16 +73,19 @@ declare !sec !{!"public", !"public", !{!"public", !"public"}} i32 @printf(ptr no
 
 ; Declassify function for i64 values
 define i64 @declassify.i64(i64 noundef %0) #2 !sec !{!"public", !"public", !{!"private"}} {
+entry:                                            ; !sec !{!"public"}
   ret i64 %0, !sec !{!"public"}
 }
 
 ; Declassify function for ptr values
 define ptr @declassify.ptr(ptr noundef %0) #2 !sec !{!"public", !"public", !{!"private"}} {
+entry:                                            ; !sec !{!"public"}
   ret ptr %0, !sec !{!"public"}
 }
 
 ; Declassify function for i1 values
 define i1 @declassify.i1(i1 noundef %0) #2 !sec !{!"public", !"public", !{!"private"}} {
+entry:                                            ; !sec !{!"public"}
   ret i1 %0, !sec !{!"public"}
 }
 
