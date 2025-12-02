@@ -13,31 +13,39 @@ class Block:
 		print(f"block {self.name} type check")
 		for instruction in self.instructions:
 			print(instruction)
+			print(self.function.labels)
+			print(self.function.module.globals)
+			print()
 			match instruction:
-				case Alloca((var_name, var_label)):
-					assert flows(self.pc, var_label), f"alloca on line{instruction.line_num}: block label ({self.pc}) doesn't flow to {var_name}'s label ({var_label})"
+				case Alloca(line_num, (var_name, var_label)):
+					assert flows(self.pc, var_label), f"alloca on line {line_num}: block label ({self.pc}) doesn't flow to {var_name}'s label ({var_label})"
 					self.function.add_local(var_name, var_label)
-				case Load((dest_name, dest_label), (src_name, src_label)):
-					assert equals(self.function.get_label(src_name), src_label), f"load on line{instruction.line_num}: {src_name}'s label isn't actually {src_label}"
-					assert flows(self.pc, dest_label), f"load on line{instruction.line_num}: block label ({self.pc}) doesn't flow to {dest_name}'s label ({dest_label})"
-					assert flows(src_label, dest_label), f"load on line{instruction.line_num}: {src_name}'s label ({src_label}) doesn't flow to {dest_name}'s label ({dest_label})"
+				case Load(line_num, (dest_name, dest_label), (src_name, src_label)):
+					assert equals(self.function.get_label(src_name), src_label), f"load on line {line_num}: {src_name}'s label isn't actually {src_label}"
+					assert flows(self.pc, dest_label), f"load on line {line_num}: block label ({self.pc}) doesn't flow to {dest_name}'s label ({dest_label})"
+					assert flows(src_label, dest_label), f"load on line {line_num}: {src_name}'s label ({src_label}) doesn't flow to {dest_name}'s label ({dest_label})"
 					self.function.add_local(dest_name, dest_label)
-				case Store((tgt_name, tgt_label), (src_name, src_label)):
+				case Store(line_num, (tgt_name, tgt_label), (src_name, src_label)):
 					# if src is a pointer, src = tgt, otherwise, src => tgt: for now we'll do the stricter check
-					assert equals(self.function.get_label(tgt_name), tgt_label), f"store on line{instruction.line_num}: {tgt_name}'s label isn't actually {tgt_label}"
-					assert equals(self.function.get_label(src_name), src_label), f"store on line{instruction.line_num}: {src_name}'s label isn't actually {src_label}"
-					assert equals(src_label, tgt_label), f"store on line{instruction.line_num}: {src_name}'s label ({src_label}) doesn't equal {tgt_name}'s label ({tgt_label})"
-				case BrCond((cond_name, cond_label), true_block, false_block):
-					assert equals(self.function.get_label(cond_name), cond_label), f"br on line{instruction.line_num}: {cond_name}'s label isn't actually {cond_label}"
-					assert flows(join(self.pc, cond_label), self.function.get_label(true_block)), f"br on line{instruction.line_num}: block label ({self.pc}) joined with {cond_name}'s label ({cond_label}) doesn't flow to {true_block}'s label ({self.function.get_label(true_block)})"
-					assert flows(join(self.pc, cond_label), self.function.get_label(false_block)), f"br on line{instruction.line_num}: block label ({self.pc}) joined with {cond_name}'s label ({cond_label}) doesn't flow to {false_block}'s label ({self.function.get_label(false_block)})"
-				case BinaryOp((result_name, result_label), op1, op2):
+					assert equals(self.function.get_label(tgt_name), tgt_label), f"store on line {line_num}: {tgt_name}'s label isn't actually {tgt_label}"
+					assert equals(self.function.get_label(src_name), src_label), f"store on line {line_num}: {src_name}'s label isn't actually {src_label}"
+					assert equals(src_label, tgt_label), f"store on line {line_num}: {src_name}'s label ({src_label}) doesn't equal {tgt_name}'s label ({tgt_label})"
+				case BrCond(line_num, (cond_name, cond_label), true_block, false_block):
+					assert equals(self.function.get_label(cond_name), cond_label), f"br on line {line_num}: {cond_name}'s label isn't actually {cond_label}"
+					assert flows(join(self.pc, cond_label), self.function.get_label(true_block)), f"br on line {line_num}: block label ({self.pc}) joined with {cond_name}'s label ({cond_label}) doesn't flow to {true_block}'s label ({self.function.get_label(true_block)})"
+					assert flows(join(self.pc, cond_label), self.function.get_label(false_block)), f"br on line {line_num}: block label ({self.pc}) joined with {cond_name}'s label ({cond_label}) doesn't flow to {false_block}'s label ({self.function.get_label(false_block)})"
+				case BinaryOp(line_num, (result_name, result_label), op1, op2):
 					assert flows(self.pc, result_label)
-					if op1 != "null": # if it's null, it just works (tech report page 9, t-null)
-						assert equals(self.function.get_label(op1), result_label), f"binary op on line{instruction.line_num}: {op1}'s label ({self.function.get_label(op1)}) doesn't equal {result_name}'s label ({result_label})"
-					if op2 != "null":
-						assert equals(self.function.get_label(op2), result_label), f"binary op on line{instruction.line_num}: {op2}'s label ({self.function.get_label(op2)}) doesn't equal {result_name}'s label ({result_label})"
+					# no idea how to deal with subtyping here so we'll just join the operand labels together
+					assert equals(join(self.function.get_label(op1), self.function.get_label(op2)), result_label), f"binary op on line {line_num}: join of {op1} ({self.function.get_label(op1)}) and {op2}'s label ({self.function.get_label(op2)}) doesn't equal {result_name}'s label ({result_label})"
+					print(f"ADDING {result_name} TO {self.function.name} WITH LABEL {result_label}: BEFORE: {self.function.labels}")
 					self.function.add_local(result_name, result_label)
+					print(f"AFTER: {self.function.labels}")
+				case Ret(line_num, (value_name, value_label)):
+					assert equals(self.function.get_label(value_name), value_label), f"ret on line {line_num}: {value_name}'s label isn't actually {value_label}"
+					assert equals(value_label, self.function.ret), f"ret on line {line_num}: {value_name}'s label doesn't equal {self.function.name}'s return label ({self.function.ret})"
+				case _:
+					raise ValueError(f"{instruction} is invalid")
 	def add_succ(self, name: str):
 		self.succs.add(name)
 
@@ -62,6 +70,8 @@ class Function:
 			return self.labels[name]
 		if name[0] == "@":
 			return self.module.globals[name]
+		if name == "void":
+			return Label.Void
 		return Label.Public # all non-null literals are public (tech report page 9, t-const)
 		# raise NameError(f"{name} is not a variable")
 	def type_check(self):

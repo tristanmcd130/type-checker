@@ -44,7 +44,7 @@ def type_check(filename: str):
 				current_block.add_instruction(Load(i + 1, (match.group(1), str_to_label(match.group(3))), (match.group(2), str_to_label(match.group(4)))))
 			elif match := search(r"store .+ ([%@]?\S+), ptr ([%@]\S+), .+ !{!\"(public|private)\", !\"(public|private)\"}", line):
 				# store
-				current_block.add_instruction(Store(i + 1, (match.group(1), str_to_label(match.group(4))), (match.group(2), str_to_label(match.group(3)))))
+				current_block.add_instruction(Store(i + 1, (match.group(1), str_to_label(match.group(3))), (match.group(2), str_to_label(match.group(4)))))
 			elif match := search(r"(%\S+) = (?:add|sub|mul|sdiv|udiv|srem|urem|fadd|fsub|fmul|fdiv|frem|and|or|xor|shl|lshr|ashr|icmp|fcmp) .+ ([%@]?\S+), ([%@]?\S+), !sec !\{!\"(public|private)\"\}", line):
 				# binary operations
 				current_block.add_instruction(BinaryOp(i + 1, (match.group(1), str_to_label(match.group(4))), match.group(2), match.group(3)))
@@ -53,6 +53,12 @@ def type_check(filename: str):
 				current_block.add_instruction(BrCond(i + 1, (match.group(1), str_to_label(match.group(4))), match.group(2), match.group(3)))
 				current_block.add_succ(match.group(2))
 				current_block.add_succ(match.group(3))
+			elif match := search(r"ret .+ ([%@]\S+), !sec !{!\"(public|private)\"}", line):
+				# ret
+				current_block.add_instruction(Ret(i + 1, (match.group(1), str_to_label(match.group(2)))))
+			elif match := search(r"ret void", line):
+				# ret void
+				current_block.add_instruction(Ret(i + 1, ("void", Label.Void())))
 			elif not line.isspace():
 				print(f"Ignoring {line[ : -1]}")
 	module.type_check()

@@ -32,6 +32,11 @@ class BinaryOp:
 	op1: str
 	op2: str
 
+@dataclass
+class Ret:
+	line_num: int
+	value: tuple[str, Label]
+
 Instruction = Alloca \
 			| Load \
 			| Store \
