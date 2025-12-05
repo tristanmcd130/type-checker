@@ -59,6 +59,7 @@ def type_check(filename: str):
 			elif match := search(r"ret void", line):
 				# ret void
 				current_block.add_instruction(Ret(i + 1, ("void", Label.Void())))
+			elif match := search(r"call .+ (@\S+)\([^,]+ (\S+)(?:, [^,]+ (\S+))*\), !sec !{!\"call\", !\"private\", !{!\"private\"}}")
 			elif not line.isspace():
 				print(f"Ignoring {line[ : -1]}")
 	module.type_check()

@@ -37,8 +37,17 @@ class Ret:
 	line_num: int
 	value: tuple[str, Label]
 
+@dataclass
+class Call:
+	line_num: int
+	function: str
+	min_pc: Label
+	args: list[tuple[str, Label]]
+
 Instruction = Alloca \
 			| Load \
 			| Store \
 			| BrCond \
-			| BinaryOp
+			| BinaryOp \
+			| Ret \
+			| Call
