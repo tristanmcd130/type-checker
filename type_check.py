@@ -31,7 +31,8 @@ def type_check(filename: str):
 	current_function = None
 	current_block = None
 	with open(filename, "r") as file:
-		for (i, line) in enumerate(file.readlines()):
+		iter = enumerate(file.readlines())
+		for (i, line) in iter:
 			if match := search(r"(@\S+) = .+ !sec !{!\"(\w+)\"}", line):
 				# global variable
 				add_variable(match.group(1), match.group(2))
@@ -50,6 +51,13 @@ def type_check(filename: str):
 				for (i, label) in enumerate(labels[2 : ]):
 					add_variable(f"{match.group(1)}.param{i}", label)
 				print(f"DECLARE {match.group(1)}")
+			elif match := search(r"define .+ @declassify\S+\(", line):
+				# define declassify
+				# declassify definitions have to be skipped since by definition they violate the rules
+				print(f"declassify definition starting on line {i} skipped")
+				for (i, line) in iter:
+					if match := search(r"^}", line):
+						break 
 			elif match := search(r"define .+ (@\S+)\(", line):
 				# define
 				labels = findall(r"\"(public|private|void|...)\"", line)
@@ -113,13 +121,13 @@ def type_check(filename: str):
 				# ret
 				add_variable(f"{current_function}.{match.group(1)}", match.group(2))
 				solver.add(vars[f"{current_function}.{match.group(1)}"] == vars[f"{current_function}.ret"])
-			elif match := search(r"(%\S+) = call .+ @declassify\S*\([^,]+ (\S+)(?:, [^,]+ (\S+))*\)", line):
+			elif match := search(r"(%\S+) = call .+ @declassify\S*\(", line):
 				# declassify
 				labels = findall(r"\"(public|private)\"", line)
 				args = [x.split(" ")[-1] for x in search(r"\(([^)]+)\)", line).group(1).split(", ")]
 				add_variable(f"{current_function}.{match.group(1)}", labels[1])
 				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(1)}"]))
-			elif match := search(r"(%\S+) = call .+ (@\S+)\([^,]+ (\S+)(?:, [^,]+ (\S+))*\)", line):
+			elif match := search(r"(%\S+) = call .+ (@\S+)\(", line):
 				# call
 				labels = findall(r"\"(public|private)\"", line)
 				args = [x.split(" ")[-1] for x in search(r"\(([^)]+)\)", line).group(1).split(", ")]
@@ -129,7 +137,7 @@ def type_check(filename: str):
 					solver.add(z3.Implies(vars[f"{current_function}.{args[j]}"], vars[f"{match.group(2)}.param{j}"]))
 				vars[f"{current_function}.{match.group(1)}"] = z3.Bool(f"{current_function}.{match.group(1)}")
 				solver.add(z3.Implies(vars[f"{match.group(2)}.ret"], vars[f"{current_function}.{match.group(1)}"]))
-			elif match := search(r"call void (@\S+)\([^,]+ (\S+)(?:, [^,]+ (\S+))*\)", line):
+			elif match := search(r"call void (@\S+)\(", line):
 				# call void
 				labels = findall(r"\"(public|private)\"", line)
 				args = [x.split(" ")[-1] for x in search(r"\(([^)]+)\)", line).group(1).split(", ")]
