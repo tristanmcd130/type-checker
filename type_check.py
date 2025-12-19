@@ -1,3 +1,4 @@
+# TODO: fix literals
 from re import search, findall
 from sys import argv
 import z3
@@ -78,35 +79,36 @@ def type_check(filename: str):
 				# block
 				current_block = match.group(1)
 				print(f"{current_block}:")
+				add_variable(f"{current_function}.{current_block}", match.group(2))
 			elif match := search(r"^}", line):
 				# end of function
 				print(f"END {current_function}\n")
 			elif match := search(r"(%\S+) = alloca .+ !sec !{!\"(public|private)\"}", line):
 				# alloca
 				add_variable(f"{current_function}.{match.group(1)}", match.group(2))
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(1)}"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{current_function}.{match.group(1)}"]))
 			elif match := search(r"(%\S+) = load .+ ptr ([%@]\S+), .+ !sec !{!\"(public|private)\", !\"(public|private)\"}", line):
 				# load
 				add_variable(f"{current_function}.{match.group(1)}", match.group(3))
 				add_variable(f"{current_function}.{match.group(2)}", match.group(4))
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(1)}"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{current_function}.{match.group(1)}"]))
 				solver.add(z3.Implies(vars[f"{current_function}.{match.group(2)}"], vars[f"{current_function}.{match.group(1)}"]))
 			elif match := search(r"store ptr ([%@]?\S+), ptr ([%@]\S+), .+ !{!\"(public|private)\", !\"(public|private)\"}", line):
 				# store ptr
 				add_variable(f"{current_function}.{match.group(2)}", match.group(4))
 				add_variable(f"{current_function}.{match.group(1)}", match.group(3))
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(2)}"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{current_function}.{match.group(2)}"]))
 				solver.add(vars[f"{current_function}.{match.group(1)}"] == vars[f"{current_function}.{match.group(2)}"])
 			elif match := search(r"store .+ ([%@]?\S+), ptr ([%@]\S+), .+ !{!\"(public|private)\", !\"(public|private)\"}", line):
 				# store
 				add_variable(f"{current_function}.{match.group(2)}", match.group(4))
 				add_variable(f"{current_function}.{match.group(1)}", match.group(3))
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(2)}"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{current_function}.{match.group(2)}"]))
 				solver.add(z3.Implies(vars[f"{current_function}.{match.group(1)}"], vars[f"{current_function}.{match.group(2)}"]))
 			elif match := search(r"(%\S+) = (?:add|sub|mul|sdiv|udiv|srem|urem|fadd|fsub|fmul|fdiv|frem|and|or|xor|shl|lshr|ashr|icmp|fcmp) .+ ([%@]?\S+), ([%@]?\S+), !sec !\{!\"(public|private)\"\}", line):
 				# binary operations
 				add_variable(f"{current_function}.{match.group(1)}", match.group(4))
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(1)}"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{current_function}.{match.group(1)}"]))
 				solver.add(z3.Implies(vars[f"{current_function}.{match.group(2)}"], vars[f"{current_function}.{match.group(1)}"]))
 				solver.add(z3.Implies(vars[f"{current_function}.{match.group(3)}"], vars[f"{current_function}.{match.group(1)}"]))
 			# elif match := search(r"br .+ ([%@]\S+), label (%\S+), label (%\S+), !sec !{!\"(public|private)\"}", line):
@@ -126,12 +128,12 @@ def type_check(filename: str):
 				labels = findall(r"\"(public|private)\"", line)
 				args = [x.split(" ")[-1] for x in search(r"\(([^)]+)\)", line).group(1).split(", ")]
 				add_variable(f"{current_function}.{match.group(1)}", labels[1])
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{current_function}.{match.group(1)}"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{current_function}.{match.group(1)}"]))
 			elif match := search(r"(%\S+) = call .+ (@\S+)\(", line):
 				# call
 				labels = findall(r"\"(public|private)\"", line)
 				args = [x.split(" ")[-1] for x in search(r"\(([^)]+)\)", line).group(1).split(", ")]
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{match.group(2)}.min_pc"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{match.group(2)}.{current_block}.pc"]))
 				for (j, arg) in enumerate(labels[1:]):
 					add_variable(f"{current_function}.{args[j]}", arg)
 					solver.add(z3.Implies(vars[f"{current_function}.{args[j]}"], vars[f"{match.group(2)}.param{j}"]))
@@ -141,7 +143,7 @@ def type_check(filename: str):
 				# call void
 				labels = findall(r"\"(public|private)\"", line)
 				args = [x.split(" ")[-1] for x in search(r"\(([^)]+)\)", line).group(1).split(", ")]
-				solver.add(z3.Implies(vars[f"{current_function}.min_pc"], vars[f"{match.group(1)}.min_pc"]))
+				solver.add(z3.Implies(vars[f"{current_function}.{current_block}.pc"], vars[f"{match.group(1)}.{current_block}.pc"]))
 				for (j, arg) in enumerate(labels[1:]):
 					add_variable(f"{current_function}.{args[j]}", arg)
 					solver.add(z3.Implies(vars[f"{current_function}.{args[j]}"], vars[f"{match.group(1)}.param{j}"]))
