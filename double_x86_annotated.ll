@@ -5,17 +5,17 @@ target triple = "x86_64-pc-linux-gnu"
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local void @init(ptr noundef %p) #0 !sec !{!"void", !"private", !{!"private"}} {
-entry: ; !sec !{!"public"}
+entry:                                            ; !sec !{!"private"}
   %p.addr = alloca ptr, align 8, !sec !{!"private"}
   store ptr %p, ptr %p.addr, align 8, !sec !{!"private", !"private"}
   %0 = load ptr, ptr %p.addr, align 8, !sec !{!"private", !"private"}
-  store i32 1, ptr %0, align 4, !sec !{!"private", !"private"}
+  store i32 1, ptr %0, align 4, !sec !{!"public", !"private"}
   ret void
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @double_1(ptr noundef %p) #0 !sec !{!"private", !"private", !{!"private"}} {
-entry: ; !sec !{!"public"}
+entry:                                            ; !sec !{!"private"}
   %p.addr = alloca ptr, align 8, !sec !{!"private"}
   %tmp = alloca i32, align 4, !sec !{!"private"}
   store ptr %p, ptr %p.addr, align 8, !sec !{!"private", !"private"}
@@ -33,13 +33,13 @@ entry: ; !sec !{!"public"}
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @main() #0 !sec !{!"public", !"public", !{}} {
-entry: ; !sec !{!"public"}
+entry:                                            ; !sec !{!"public"}
   %retval = alloca i32, align 4, !sec !{!"public"}
   %r = alloca i32, align 4, !sec !{!"private"}
   %p = alloca ptr, align 8, !sec !{!"private"}
   store i32 0, ptr %retval, align 4, !sec !{!"public", !"public"}
-  store i32 0, ptr %r, align 4, !sec !{!"private", !"private"}
-  %call = call noalias ptr @malloc(i64 noundef 4) #2, !sec !{!"malloc", !"private"}
+  store i32 0, ptr %r, align 4, !sec !{!"public", !"private"}
+  %call = call noalias ptr @malloc(i64 noundef 4) #2, !sec !{!"private"}
   store ptr %call, ptr %p, align 8, !sec !{!"private", !"private"}
   %0 = load ptr, ptr %p, align 8, !sec !{!"private", !"private"}
   call void @init(ptr noundef %0), !sec !{!"call", !"void", !{!"private"}}
@@ -52,7 +52,7 @@ entry: ; !sec !{!"public"}
 }
 
 ; Function Attrs: nounwind allocsize(0)
-declare noalias ptr @malloc(i64 noundef) #1
+declare !sec !{!"public", !"public", !{}} noalias ptr @malloc(i64 noundef) #1
 
 ;
 define i32 @declassify.i32(i32 noundef %0) #2 !sec !{!"public", !"public", !{!"private"}} {
@@ -72,3 +72,5 @@ attributes #2 = { nounwind allocsize(0) }
 !3 = !{i32 7, !"uwtable", i32 2}
 !4 = !{i32 7, !"frame-pointer", i32 2}
 !5 = !{!"Ubuntu clang version 17.0.6 (++20231208085846+6009708b4367-1~exp1~20231208085949.74)"}
+
+; Synthesized wrapper functions:
